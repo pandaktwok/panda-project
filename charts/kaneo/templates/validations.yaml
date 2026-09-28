@@ -1,0 +1,38 @@
+{{- $publicExposureEnabled := or .Values.ingress.enabled .Values.gateway.enabled -}}
+{{- if and (not .Values.kaneo.env.existingSecret.enabled) (or (not .Values.kaneo.env.authSecret) (lt (len (.Values.kaneo.env.authSecret | toString)) 32)) -}}
+{{- fail "kaneo.env.authSecret must be explicitly set to at least 32 characters or provided via kaneo.env.existingSecret" -}}
+{{- end -}}
+{{- if and $publicExposureEnabled .Values.postgresql.enabled (not .Values.postgresql.auth.existingSecret) (eq .Values.postgresql.auth.password "kaneo_password") -}}
+{{- fail "postgresql.auth.password must be changed or provided via postgresql.auth.existingSecret before enabling ingress or gateway" -}}
+{{- end -}}
+{{- if and .Values.autoscaling.enabled .Values.autoscaling.targetCPUUtilizationPercentage (not (dig "requests" "cpu" "" .Values.kaneo.resources)) -}}
+{{- fail "kaneo.resources.requests.cpu must be set when autoscaling CPU utilization is enabled" -}}
+{{- end -}}
+
+{{- if and .Values.kaneo.env.existingSecret.enabled (or (not .Values.kaneo.env.existingSecret.name) (not .Values.kaneo.env.existingSecret.key)) -}}
+{{- fail "kaneo.env.existingSecret requires a non-empty name and key" -}}
+{{- end -}}
+{{- $clientUrl := .Values.kaneo.env.clientUrl | trim -}}
+{{- if not $clientUrl -}}
+{{- fail "kaneo.env.clientUrl is required: set the public HTTP(S) origin used to access Kaneo (for example https://kaneo.example.com)" -}}
+{{- end -}}
+{{- $parsedClientUrl := urlParse $clientUrl -}}
+{{- if or (not (has $parsedClientUrl.scheme (list "http" "https"))) (not $parsedClientUrl.host) $parsedClientUrl.userinfo $parsedClientUrl.query $parsedClientUrl.fragment (not (has $parsedClientUrl.path (list "" "/"))) -}}
+{{- fail "kaneo.env.clientUrl must be an HTTP(S) origin without credentials, a path, a query or a fragment" -}}
+{{- end -}}
+
+{{- if eq .Values.kaneo.image.repository "ghcr.io/SEU-USUARIO/panda-project" -}}
+{{- fail "kaneo.image.repository still has the placeholder: build the fork image (Dockerfile.kaneo), push it to your registry and set kaneo.image.repository" -}}
+{{- end -}}
+{{- if and (not .Values.kaneo.env.notificationSecretExistingSecret.enabled) (lt (len (.Values.kaneo.env.notificationSecretEncryptionKey | toString)) 16) -}}
+{{- fail "kaneo.env.notificationSecretEncryptionKey must be set (at least 16 characters, use: openssl rand -hex 32) or provided via kaneo.env.notificationSecretExistingSecret" -}}
+{{- end -}}
+{{- if not (.Values.kaneo.env.s3.endpoint | trim) -}}
+{{- fail "kaneo.env.s3.endpoint is required: the address the browser and the API use to reach the file storage (for example https://arquivos.example.com)" -}}
+{{- end -}}
+{{- if and .Values.minio.enabled (not .Values.minio.auth.existingSecret) (lt (len (.Values.minio.auth.rootPassword | toString)) 8) -}}
+{{- fail "minio.auth.rootPassword must have at least 8 characters (or use minio.auth.existingSecret)" -}}
+{{- end -}}
+{{- if and (not .Values.minio.enabled) (not .Values.kaneo.env.s3.existingSecret.enabled) (or (not .Values.kaneo.env.s3.accessKeyId) (not .Values.kaneo.env.s3.secretAccessKey)) -}}
+{{- fail "with minio.enabled=false set kaneo.env.s3.accessKeyId and secretAccessKey (or kaneo.env.s3.existingSecret)" -}}
+{{- end -}}

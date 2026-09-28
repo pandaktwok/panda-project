@@ -1,0 +1,1 @@
+ALTER TABLE "project_payment_line" ADD COLUMN "is_fixed_amount" boolean DEFAULT true NOT NULL;

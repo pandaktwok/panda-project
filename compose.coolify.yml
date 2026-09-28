@@ -1,0 +1,92 @@
+# Panda Project no Coolify
+#
+# No Coolify: novo recurso -> repositório Git (o seu fork) -> Build Pack "Docker Compose"
+#   Base Directory: /     Compose Location: compose.coolify.yml
+#
+# Domínio: atribua ao serviço "kaneo" usando a porta do container, por exemplo
+#   https://projetos.seudominio.com.br:5173
+# (quem acessa usa o HTTPS normal; a porta só diz ao Coolify para onde rotear).
+# Para os arquivos (armazenamento S3), atribua ao serviço "storage" o domínio
+#   https://arquivos.seudominio.com.br:9000
+# e use esse endereço em S3_ENDPOINT (o navegador precisa alcançá-lo).
+#
+# Variáveis que VOCÊ define no Coolify:
+#   KANEO_CLIENT_URL   endereço público do sistema, sem :5173 (ex.: https://projetos.seudominio.com.br)
+#   S3_ENDPOINT        endereço público do armazenamento (ex.: https://arquivos.seudominio.com.br)
+# O Coolify gera sozinho: senha do banco, AUTH_SECRET, chave de criptografia e usuário/senha do armazenamento.
+# Não defina KANEO_API_URL: o container deriva de KANEO_CLIENT_URL (+ /api).
+#
+# Primeiro acesso: crie a primeira conta (vira Administrador). O cadastro aberto
+# já vem desligado (DISABLE_REGISTRATION=true); a primeira conta ainda é aceita.
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      - POSTGRES_DB=kaneo
+      - POSTGRES_USER=kaneo
+      - POSTGRES_PASSWORD=${SERVICE_PASSWORD_POSTGRES:?}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U kaneo -d kaneo"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Armazenamento de arquivos compatível com S3 (SeaweedFS). O sistema cria o bucket sozinho.
+  storage:
+    image: chrislusf/seaweedfs:3.99
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        printf '{"identities":[{"name":"panda","credentials":[{"accessKey":"%s","secretKey":"%s"}],"actions":["Admin","Read","Write","List","Tagging"]}]}' "$${S3_ACCESS_KEY_ID}" "$${S3_SECRET_ACCESS_KEY}" > /tmp/s3.json
+        exec weed server -dir=/data -ip.bind=0.0.0.0 -master.volumeSizeLimitMB=1024 -volume.max=100 -s3 -s3.port=9000 -s3.config=/tmp/s3.json
+    environment:
+      - S3_ACCESS_KEY_ID=${SERVICE_USER_STORAGE:?}
+      - S3_SECRET_ACCESS_KEY=${SERVICE_PASSWORD_STORAGE:?}
+    volumes:
+      - storage_data:/data
+    restart: unless-stopped
+
+  kaneo:
+    # Constrói a imagem a partir do fork (é a que tem o Financeiro).
+    build:
+      context: .
+      dockerfile: Dockerfile.kaneo
+    image: panda-project:coolify
+    environment:
+      - KANEO_CLIENT_URL=${KANEO_CLIENT_URL:?}
+      - AUTH_SECRET=${SERVICE_HEX_64_KANEO:?}
+      - NOTIFICATION_SECRET_ENCRYPTION_KEY=${SERVICE_HEX_64_NOTIFY:?}
+      - DISABLE_REGISTRATION=true
+      # A imagem monta o DATABASE_URL a partir destas variáveis POSTGRES_*.
+      - POSTGRES_HOST=postgres
+      - POSTGRES_DB=kaneo
+      - POSTGRES_USER=kaneo
+      - POSTGRES_PASSWORD=${SERVICE_PASSWORD_POSTGRES}
+      # Arquivos (comprovantes, notas fiscais, anexos).
+      - S3_ENDPOINT=${S3_ENDPOINT:?}
+      - S3_BUCKET=panda-project
+      - S3_ACCESS_KEY_ID=${SERVICE_USER_STORAGE}
+      - S3_SECRET_ACCESS_KEY=${SERVICE_PASSWORD_STORAGE}
+      - S3_REGION=us-east-1
+      - S3_FORCE_PATH_STYLE=true
+      # Opcionais (SMTP_*, TRUSTED_PROXIES, Redis...): adicione aqui ou na tela do Coolify.
+    depends_on:
+      postgres:
+        condition: service_healthy
+      storage:
+        condition: service_started
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://127.0.0.1:5173/api/health"]
+      interval: 30s
+      timeout: 5s
+      start_period: 60s
+      retries: 3
+
+volumes:
+  postgres_data:
+  storage_data:

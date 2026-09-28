@@ -1,0 +1,133 @@
+{{- if .Values.minio.enabled }}
+{{- if not .Values.minio.auth.existingSecret }}
+apiVersion: v1
+kind: Secret
+metadata:
+  name: {{ include "kaneo.fullname" . }}-minio
+  labels:
+    {{- include "kaneo.labels" . | nindent 4 }}
+    app.kubernetes.io/component: minio
+type: Opaque
+stringData:
+  {{ .Values.minio.auth.secretKeys.rootUserKey }}: {{ .Values.minio.auth.rootUser | quote }}
+  {{ .Values.minio.auth.secretKeys.rootPasswordKey }}: {{ .Values.minio.auth.rootPassword | quote }}
+---
+{{- end }}
+{{- if .Values.minio.persistence.enabled }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "kaneo.fullname" . }}-minio-data
+  labels:
+    {{- include "kaneo.labels" . | nindent 4 }}
+    app.kubernetes.io/component: minio
+spec:
+  accessModes:
+    - {{ .Values.minio.persistence.accessMode | default "ReadWriteOnce" }}
+  {{- if .Values.minio.persistence.storageClass }}
+  {{- if (eq "-" .Values.minio.persistence.storageClass) }}
+  storageClassName: ""
+  {{- else }}
+  storageClassName: {{ .Values.minio.persistence.storageClass }}
+  {{- end }}
+  {{- end }}
+  resources:
+    requests:
+      storage: {{ .Values.minio.persistence.size | default "20Gi" }}
+---
+{{- end }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "kaneo.fullname" . }}-minio
+  labels:
+    {{- include "kaneo.labels" . | nindent 4 }}
+    app.kubernetes.io/component: minio
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      {{- include "kaneo.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: minio
+  template:
+    metadata:
+      labels:
+        {{- include "kaneo.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: minio
+    spec:
+      containers:
+        - name: minio
+          image: "{{ .Values.minio.image.repository }}:{{ .Values.minio.image.tag }}"
+          imagePullPolicy: {{ .Values.minio.image.pullPolicy }}
+          # No modo de disco único, uma pasta em /data é um bucket: criar a pasta
+          # na largada garante que o bucket exista sem um job de inicialização.
+          command:
+            - /bin/sh
+            - -c
+            - mkdir -p "/data/$S3_BUCKET" && exec minio server /data --console-address ":9001"
+          env:
+            - name: S3_BUCKET
+              value: {{ .Values.kaneo.env.s3.bucket | quote }}
+            - name: MINIO_ROOT_USER
+              valueFrom:
+                secretKeyRef:
+                  name: {{ default (printf "%s-minio" (include "kaneo.fullname" .)) .Values.minio.auth.existingSecret }}
+                  key: {{ .Values.minio.auth.secretKeys.rootUserKey }}
+            - name: MINIO_ROOT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ default (printf "%s-minio" (include "kaneo.fullname" .)) .Values.minio.auth.existingSecret }}
+                  key: {{ .Values.minio.auth.secretKeys.rootPasswordKey }}
+          ports:
+            - name: s3
+              containerPort: 9000
+              protocol: TCP
+            - name: console
+              containerPort: 9001
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /minio/health/live
+              port: s3
+            initialDelaySeconds: 20
+            periodSeconds: 20
+          readinessProbe:
+            httpGet:
+              path: /minio/health/ready
+              port: s3
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          resources:
+            {{- toYaml .Values.minio.resources | nindent 12 }}
+          volumeMounts:
+            - name: data
+              mountPath: /data
+      volumes:
+        - name: data
+          {{- if .Values.minio.persistence.enabled }}
+          persistentVolumeClaim:
+            claimName: {{ include "kaneo.fullname" . }}-minio-data
+          {{- else }}
+          emptyDir: {}
+          {{- end }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "kaneo.fullname" . }}-minio
+  labels:
+    {{- include "kaneo.labels" . | nindent 4 }}
+    app.kubernetes.io/component: minio
+spec:
+  type: {{ .Values.minio.service.type }}
+  ports:
+    - name: s3
+      port: {{ .Values.minio.service.port }}
+      targetPort: s3
+      protocol: TCP
+  selector:
+    {{- include "kaneo.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: minio
+{{- end }}

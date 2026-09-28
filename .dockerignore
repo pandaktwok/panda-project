@@ -1,0 +1,30 @@
+.git
+.github
+.turbo
+**/.next
+**/.turbo
+**/coverage
+**/dist
+**/node_modules
+.env
+.env.*
+!apps/web/.env.production
+*.log
+**/.cache
+
+# Panda Project: partes do fork que o Dockerfile.kaneo não usa. Ficam no Git, mas
+# não entram no contexto de build (build mais rápido e menor).
+apps/site
+apps/docs
+skills
+skills-lock.json
+plans
+.cursor
+.agents
+scripts/ui-review-bot
+sentry
+packages/planka-import
+packages/mcp
+charts
+tests
+docs
