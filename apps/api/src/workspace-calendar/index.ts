@@ -8,11 +8,13 @@ import {
 import { workspaceAccess } from "../utils/workspace-access-middleware";
 import getWorkspaceCalendarFinanceInstallments from "./controllers/get-finance-installments";
 import getWorkspaceCalendarTasks from "./controllers/get-tasks";
+import getWorkspaceWidgetSummary from "./controllers/get-widget-summary";
 import {
   workspaceCalendarInstallmentsSchema,
   workspaceCalendarTasksSchema,
+  workspaceWidgetSummarySchema,
 } from "./response";
-import { workspaceCalendarQuery } from "./schema";
+import { workspaceCalendarQuery, workspaceWidgetSummaryQuery } from "./schema";
 
 const listCalendarTasksRoute = createRoute({
   method: "get",
@@ -53,6 +55,25 @@ const listCalendarInstallmentsRoute = createRoute({
   },
 });
 
+const widgetSummaryRoute = createRoute({
+  method: "get",
+  operationId: "getWorkspaceWidgetSummary",
+  path: "/widget-summary",
+  tags: ["Workspace calendar"],
+  summary: "Get the desktop widget summary",
+  description:
+    "Everything the desktop widget shows in one call: next scheduled " +
+    "payment, overdue payments, projects created in the last 3 months, " +
+    "newly created tasks and a calendar window of installments and tasks.",
+  middleware: [workspaceAccess.fromQuery()] as const,
+  request: { query: workspaceWidgetSummaryQuery },
+  responses: {
+    200: jsonResponse("Widget summary", workspaceWidgetSummarySchema),
+    400: errorResponse("Workspace ID could not be determined"),
+    403: errorResponse("No access to the workspace"),
+  },
+});
+
 const workspaceCalendar = apiRouter<BaseVariables & { workspaceId: string }>()
   .openapi(listCalendarTasksRoute, async (c) => {
     const workspaceId = c.get("workspaceId");
@@ -66,6 +87,16 @@ const workspaceCalendar = apiRouter<BaseVariables & { workspaceId: string }>()
       c.get("userId"),
     );
     return c.json(installments, 200);
+  })
+  .openapi(widgetSummaryRoute, async (c) => {
+    const workspaceId = c.get("workspaceId");
+    const { newTasksDays } = c.req.valid("query");
+    const summary = await getWorkspaceWidgetSummary(
+      workspaceId,
+      c.get("userId"),
+      newTasksDays,
+    );
+    return c.json(summary, 200);
   });
 
 export default workspaceCalendar;

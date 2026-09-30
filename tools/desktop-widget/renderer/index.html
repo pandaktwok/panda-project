@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'self'; script-src 'self'; img-src 'self' data:" />
+  <title>Panda Project</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header class="titlebar">
+    <span class="brand">🐼 Panda Project</span>
+    <span class="spacer"></span>
+    <button id="btn-refresh" class="icon-btn" title="Atualizar agora" aria-label="Atualizar agora">↻</button>
+    <button id="btn-settings" class="icon-btn" title="Configurações" aria-label="Configurações">⚙</button>
+    <button id="btn-hide" class="icon-btn" title="Esconder na bandeja" aria-label="Esconder">–</button>
+  </header>
+  <nav class="tabs" id="tabs">
+    <button data-view="resumo" class="tab active">Resumo</button>
+    <button data-view="calendario" class="tab">Calendário</button>
+  </nav>
+  <div id="banner" class="banner" hidden></div>
+  <main id="content" class="content"></main>
+  <footer id="footer" class="footer"></footer>
+  <script src="../lib/core.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

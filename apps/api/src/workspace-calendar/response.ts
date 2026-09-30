@@ -38,3 +38,42 @@ export const workspaceCalendarTasksSchema = z.array(
 export const workspaceCalendarInstallmentsSchema = z.array(
   workspaceCalendarInstallmentSchema,
 );
+
+export const workspaceWidgetSummarySchema = z
+  .object({
+    generatedAt: z.string().openapi({ format: "date-time" }),
+    today: z.string().openapi({ format: "date" }),
+    nextInstallment: workspaceCalendarInstallmentSchema.nullable(),
+    overdue: z.object({
+      count: z.number().int(),
+      totalCents: z.number().int(),
+      items: z.array(workspaceCalendarInstallmentSchema),
+    }),
+    recentProjects: z.array(
+      z.object({
+        id: z.string(),
+        name: z.string(),
+        slug: z.string(),
+        createdAt: z.string().openapi({ format: "date-time" }),
+        projectLabel: projectLabelRef,
+      }),
+    ),
+    newTasks: z.array(
+      z.object({
+        id: z.string(),
+        title: z.string(),
+        number: z.number().int().nullable(),
+        status: z.string(),
+        dueDate: z.string().nullable().openapi({ format: "date-time" }),
+        createdAt: z.string().openapi({ format: "date-time" }),
+        projectId: z.string(),
+        projectName: z.string(),
+        projectSlug: z.string(),
+      }),
+    ),
+    calendar: z.object({
+      installments: workspaceCalendarInstallmentsSchema,
+      tasks: workspaceCalendarTasksSchema,
+    }),
+  })
+  .openapi("WorkspaceWidgetSummary");

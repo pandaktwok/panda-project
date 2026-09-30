@@ -1,0 +1,24 @@
+{
+  "name": "panda-project-widget",
+  "productName": "Panda Project Widget",
+  "version": "1.0.0",
+  "description": "Widget de área de trabalho do Panda Project: próximos pagamentos, atrasos, projetos e tarefas novas.",
+  "main": "main.js",
+  "private": true,
+  "scripts": {
+    "start": "electron .",
+    "test": "node --test test/core.test.js",
+    "dist": "electron-builder --win portable"
+  },
+  "devDependencies": {
+    "electron": "^33.0.0",
+    "electron-builder": "^25.1.8"
+  },
+  "build": {
+    "appId": "br.com.pandaproject.widget",
+    "productName": "Panda Project Widget",
+    "files": ["main.js", "preload.js", "lib/**", "renderer/**", "assets/**"],
+    "win": { "target": "portable", "icon": "assets/icon.png" },
+    "portable": { "artifactName": "PandaProjectWidget.exe" }
+  }
+}

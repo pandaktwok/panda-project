@@ -1720,6 +1720,184 @@
           "projectLabel"
         ]
       },
+      "WorkspaceWidgetSummary": {
+        "type": "object",
+        "properties": {
+          "generatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "today": {
+            "type": "string",
+            "format": "date"
+          },
+          "nextInstallment": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/WorkspaceCalendarInstallment"
+              },
+              {
+                "type": [
+                  "object",
+                  "null"
+                ]
+              }
+            ]
+          },
+          "overdue": {
+            "type": "object",
+            "properties": {
+              "count": {
+                "type": "integer"
+              },
+              "totalCents": {
+                "type": "integer"
+              },
+              "items": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/WorkspaceCalendarInstallment"
+                }
+              }
+            },
+            "required": [
+              "count",
+              "totalCents",
+              "items"
+            ]
+          },
+          "recentProjects": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "slug": {
+                  "type": "string"
+                },
+                "createdAt": {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                "projectLabel": {
+                  "type": [
+                    "object",
+                    "null"
+                  ],
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "name": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "name"
+                  ]
+                }
+              },
+              "required": [
+                "id",
+                "name",
+                "slug",
+                "createdAt",
+                "projectLabel"
+              ]
+            }
+          },
+          "newTasks": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "title": {
+                  "type": "string"
+                },
+                "number": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
+                },
+                "status": {
+                  "type": "string"
+                },
+                "dueDate": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "format": "date-time"
+                },
+                "createdAt": {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                "projectId": {
+                  "type": "string"
+                },
+                "projectName": {
+                  "type": "string"
+                },
+                "projectSlug": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "id",
+                "title",
+                "number",
+                "status",
+                "dueDate",
+                "createdAt",
+                "projectId",
+                "projectName",
+                "projectSlug"
+              ]
+            }
+          },
+          "calendar": {
+            "type": "object",
+            "properties": {
+              "installments": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/WorkspaceCalendarInstallment"
+                }
+              },
+              "tasks": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/WorkspaceCalendarTask"
+                }
+              }
+            },
+            "required": [
+              "installments",
+              "tasks"
+            ]
+          }
+        },
+        "required": [
+          "generatedAt",
+          "today",
+          "nextInstallment",
+          "overdue",
+          "recentProjects",
+          "newTasks",
+          "calendar"
+        ]
+      },
       "AiEligibility": {
         "type": "object",
         "properties": {
@@ -9927,6 +10105,72 @@
                   "items": {
                     "$ref": "#/components/schemas/WorkspaceCalendarInstallment"
                   }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Workspace ID could not be determined",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid credentials"
+          },
+          "403": {
+            "description": "No access to the workspace",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/workspace-calendar/widget-summary": {
+      "get": {
+        "operationId": "getWorkspaceWidgetSummary",
+        "tags": [
+          "Workspace calendar"
+        ],
+        "summary": "Get the desktop widget summary",
+        "description": "Everything the desktop widget shows in one call: next scheduled payment, overdue payments, projects created in the last 3 months, newly created tasks and a calendar window of installments and tasks.",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "workspaceId",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 90,
+              "default": 7
+            },
+            "required": false,
+            "name": "newTasksDays",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Widget summary",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkspaceWidgetSummary"
                 }
               }
             }
